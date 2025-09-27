@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Test WiFi Viewer</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css">
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; width: 100%; }
+    #map { height: 100vh; width: 100vw; }
+    #sidebar {
+      position: fixed; top: 10px; left: 10px;
+      background: rgba(0,0,0,0.8); color: white;
+      padding: 10px; border-radius: 5px; z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="sidebar">
+    <input type="file" id="fileInput" multiple>
+    <div id="fileStatus">Select WiFi data files...</div>
+  </div>
+
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
+  <script src="config.js"></script>
+  <script>
+    const MAPBOX_ACCESS_TOKEN = window.CONFIG?.MAPBOX_ACCESS_TOKEN || 'YOUR_TOKEN_HERE';
+
+    let map;
+    let rawFeatures = [];
+
+    function initMap() {
+      mapboxgl.accessToken = MAPBOX_ACCESS_TOKEN;
+      map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/mapbox/standard',
+        center: [-83.6875, 43.0125],
+        zoom: 3
+      });
+
+      map.on('load', () => {
+        console.log('Map loaded successfully');
+        map.addSource('wifi', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+
+        map.addLayer({
+          id: 'wifi-points',
+          type: 'circle',
+          source: 'wifi',
+          paint: {
+            'circle-radius': 5,
+            'circle-color': '#ff0000',
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 1
+          }
+        });
+      });
+
+      map.on('error', (e) => {
+        console.error('Map error:', e);
+        document.getElementById('fileStatus').textContent = 'Map error: ' + e.error.message;
+      });
+    }
+
+    function processFile(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          console.log('File loaded:', data);
+          document.getElementById('fileStatus').textContent = 'File loaded successfully';
+
+          // Simple test - add a single point
+          const testFeature = {
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [-83.6875, 43.0125] },
+            properties: { name: 'Test Point' }
+          };
+
+          map.getSource('wifi').setData({
+            type: 'FeatureCollection',
+            features: [testFeature]
+          });
+
+        } catch (error) {
+          console.error('Error processing file:', error);
+          document.getElementById('fileStatus').textContent = 'Error: ' + error.message;
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM loaded');
+      initMap();
+
+      document.getElementById('fileInput').addEventListener('change', (event) => {
+        const files = event.target.files;
+        if (files.length > 0) {
+          processFile(files[0]);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
